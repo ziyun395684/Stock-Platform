@@ -1,0 +1,54 @@
+# StockRNN platform services. MySQL and Redis are existing host services.
+# Start from repository root with:
+#   docker compose --env-file research_platform/.env.docker up --build
+services:
+  research-platform-frontend:
+    build:
+      context: ../..
+      dockerfile: research_platform/docker/Dockerfile.frontend
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "5173:80"
+    restart: unless-stopped
+
+  research-platform-api:
+    build:
+      context: ../..
+      dockerfile: research_platform/docker/Dockerfile.backend
+    environment:
+      STOCKRNN_PLATFORM_ENV: development
+      STOCKRNN_PLATFORM_API_PREFIX: /api
+      STOCKRNN_STORAGE_BACKEND: mysql
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL for host.docker.internal}
+      REDIS_URL: redis://host.docker.internal:6379/0
+      STOCKRNN_ARTIFACT_ROOT: /workspace/output/platform
+      PYTHONPATH: /workspace
+    ports:
+      - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ../..:/workspace
+    working_dir: /workspace
+    command: ["uvicorn", "research_platform.backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    restart: unless-stopped
+
+  research-platform-worker:
+    build:
+      context: ../..
+      dockerfile: research_platform/docker/Dockerfile.backend
+    environment:
+      STOCKRNN_PLATFORM_ENV: development
+      STOCKRNN_STORAGE_BACKEND: mysql
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL for host.docker.internal}
+      REDIS_URL: redis://host.docker.internal:6379/0
+      STOCKRNN_ARTIFACT_ROOT: /workspace/output/platform
+      PYTHONPATH: /workspace
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ../..:/workspace
+    working_dir: /workspace
+    command: ["celery", "-A", "research_platform.workers.celery_app:celery_app", "worker", "--loglevel=INFO", "--pool=solo"]
+    restart: unless-stopped

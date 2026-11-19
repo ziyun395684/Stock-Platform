@@ -1,0 +1,49 @@
+# Python and test artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pytest-basetemp*/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Frontend dependencies and builds
+**/node_modules/
+**/dist/
+**/.vite/
+.pnpm-store/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+research_platform/.env
+research_platform/.env.*
+!research_platform/.env.example
+!research_platform/.env.docker.example
+
+# Runtime data, artifacts, models and downloaded market data
+output/
+quotes/
+quotes2/
+data/**/*.csv
+data/**/*.parquet
+data/**/*.pkl
+data/**/*.feather
+model_and_train/checkpoints/
+*.keras
+*.h5
+*.pt
+*.pth
+*.sqlite3
+
+# IDE and OS files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+

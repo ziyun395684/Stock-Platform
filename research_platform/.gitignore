@@ -1,0 +1,7 @@
+# Local platform secrets and generated state
+.env.local
+.env.docker
+.env.*.local
+__pycache__/
+.pytest_cache/
+*.pyc

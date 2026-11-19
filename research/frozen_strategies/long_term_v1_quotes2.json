@@ -1,0 +1,43 @@
+{
+  "strategy_id": "long_term_v1_quotes2",
+  "status": "frozen_research_candidate",
+  "description": "quotes2 十年长期策略，供历史复现和人工复核，不自动下单",
+  "data_dir": "quotes2",
+  "data_end": "2025-11-05",
+  "universe": [
+    "513100.SH",
+    "518880.SH",
+    "159915.SZ",
+    "510300.SH"
+  ],
+  "benchmark": "510300.SH",
+  "top_k": 1,
+  "hold_days": 10,
+  "cost_rate": 0.003,
+  "execution_rule": "legacy_signal",
+  "exit_mode": "signal",
+  "signal_parameters": {
+    "trend_period": 24,
+    "sell_roc_window": 59,
+    "sell_roc_threshold": 0.24,
+    "use_composite_score": false
+  },
+  "frozen_reference_result": {
+    "total_return_gross": 95.75040009079054,
+    "total_return_net": 41.237332266110975,
+    "total_return_net_percent": 4123.7332266110975,
+    "final_capital_multiple": 42.237332266110975,
+    "annualized_return": 0.3386306334476272,
+    "max_drawdown": 0.16910329004779484,
+    "sharpe": 4.03400254764179,
+    "calmar": 2.002507658791959,
+    "hit_rate": 0.5821428571428572,
+    "n_trades": 280
+  },
+  "limitations": [
+    "参考结果截止 2025-11-05，未代表 2025-11-06 之后的样本外表现",
+    "ETF 池只有 4 只，不是当前 50 ETF Transformer 主线",
+    "信号退出规则交易频率和执行假设需要人工复核",
+    "不得据此直接自动下单或替代 Factor-common 默认研究基线"
+  ]
+}

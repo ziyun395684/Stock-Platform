@@ -1,0 +1,134 @@
+# =====================================================================
+# StockRNN 多周期 Transformer-LSTM 股票短期上涨事件预测系统 配置文件
+# 对应 Todo Task4.3：全部参数集中管理；非法配置启动直接报错。
+# 用法：python main.py train --config config.yaml
+#       python main.py predict --config config.yaml --set model.lstm_units=128
+# =====================================================================
+
+# ---------- 数据接入 ----------
+data:
+  source: csv            # csv | akshare | tushare
+  code: "510300.SH"      # 标的代码
+  start: "2015-01-01"    # 训练数据起始日期；ETF 按实际上市日期加入 union 面板
+  end: "2024-12-31"      # 结束日期
+  adjust_type: qfq       # 复权：qfq(前复权) | hfq(后复权) | none
+  min_years: 5           # 最少历史年限（不足拒绝训练）
+  extended_panel_features: false  # 实验性多周期扩展特征，默认关闭
+  panel_feature_columns: null  # 可选：显式特征消融列表；null=使用全部默认特征
+
+# ---------- 模型结构（需求§4.2） ----------
+model:
+  look_backs: [20, 60, 120]   # 三周期窗口
+  lstm_units: 64              # LSTM 单元数（32-64，10年数据可128）
+  transformer_layers: 2       # Transformer 层数（固定2）
+  num_heads: 4                # 注意力头数
+  dropout: 0.2                # 通用 dropout（LSTM后/全连接后区间内）
+  max_relative_distance: 120  # 相对位置偏置最大距离（匹配最长窗口）
+  regression_loss_weight: 1.0
+  classification_loss_weight: 1.0
+  return_clip: 0.2
+  ranking_target: raw       # raw 或 cross_sectional；后者训练相对收益排序目标
+  ranking_loss_weight: 0.0  # 同日两两排序损失；实验阶段开启，默认关闭
+  use_symbol_one_hot: false  # 可选：将 ETF 标识作为共享模型输入特征
+  factor_guidance_weight: 0.5
+  factor_guidance_schedule: [0.5, 0.333333, 0.166667, 0.0]
+  factor_guidance_epochs_per_stage: 5
+
+# ---------- 标签生成（Task1.4） ----------
+labels:
+  label_mode: tolerant   # tolerant | strict
+  label_threshold: 0.0    # ETF 辅助事件标签：未来收益 >= 0 即为正例，不再要求 +5%
+
+# ---------- ETF 面板策略 ----------
+universe:
+  symbols:
+    - "518880.SH"
+    - "513100.SH"
+    - "513500.SH"
+    - "162719.SZ"
+    - "513330.SH"
+    - "513520.SH"
+    - "588000.SH"
+    - "512100.SH"
+    - "159531.SZ"
+    - "159509.SZ"
+    - "159813.SZ"
+    - "159857.SZ"
+    - "159915.SZ"
+    - "513730.SH"
+    - "159687.SZ"
+    - "513030.SH"
+    - "513180.SH"
+  benchmark: "510300.SH"
+  top_k: 2
+  correlation_threshold: 0.85
+  allow_short_history: true
+  date_alignment: union
+
+# ---------- 因子引导混合排序 ----------
+ranking:
+  factor_weight: 0.5       # 原策略因子初始权重
+  model_weight: 0.5        # Transformer 收益预测权重
+  weight_source: config     # config 固定权重；validation 仅用验证集选择
+  min_pred_return: null
+  min_event_probability: null
+
+# ---------- 数据集划分（Task1.5） ----------
+split:
+  split_ratios: {train: 0.70, val: 0.15, test: 0.15}
+  split_mode: base       # base | enhance（enhance 额外产出 valB 仅用于集成权重）
+  enable_lowvol_weight: true
+  embargo_days: 3        # 标签持有窗口边界隔离
+
+# ---------- 滚动样本外实验 ----------
+rolling:
+  train_days: 1000
+  val_days: 250
+  test_days: 250
+  step_days: 250
+  calibrate_signal_filter: false  # 增强实验：仅用验证集校准最低预测收益门槛
+  signal_filter_candidates: [null, 0.0, 0.02, 0.05]
+  signal_filter_min_trades: 1
+
+# ---------- 训练（Task2.3/2.4） ----------
+training:
+  learning_rate: 0.001
+  batch_size: 32
+  epochs: 100
+  early_stop_patience: 15
+  clipnorm: 1.0
+  max_class_weight: 5.0
+  min_positive_count: 30       # 正例门禁：不足跳过该窗口子模型
+  min_positive_ratio: 0.04     # 正例占比门禁
+  min_sample_count: 50         # 每个 ETF/split 的最小有效样本量告警门禁
+  parallel_training: false     # true 且多 GPU 时并行
+  random_seed: 42
+
+# ---------- 集成（Task3.1） ----------
+ensemble:
+  mode: baseline         # baseline | enhanced
+  infer_threshold: 0.5   # 正例判定阈值（0.3-0.7 灵敏度分析区间内）
+
+# ---------- 回测（Task3.4） ----------
+backtest:
+  cost_rate: 0.003       # 摩擦成本（买卖合计 0.3%-0.5%）
+  slippage_rate: 0.0     # 买入/卖出价格滑点比例
+  initial_capital: 1.0  # 组合初始资金（报告单位）
+  hold_days: 3            # ETF 组合固定持仓交易日数
+  min_signal_interval: 0 # 最小信号间隔（连续 N 日信号只取第一次，0=不限制）
+  exit_mode: signal        # fixed | dynamic | signal；signal=跌出Top-K后下一开盘替换
+  dynamic_enabled: false   # 是否额外输出动态退出增量报告
+  stop_loss: null          # 例如 0.03
+  trend_exit_days: null    # 连续下跌天数触发退出
+  rank_exit_threshold: null # 排名高于该值触发退出
+  max_hold_days: 3
+
+# ---------- 报表与路径（Task4.2） ----------
+report:
+  output_csv: "output/report.csv"
+  output_json: "output/report.json"
+
+paths:
+  data_dir: "quotes"
+  model_dir: "model_and_train/checkpoints"
+  output_dir: "output"

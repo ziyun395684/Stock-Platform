@@ -1,0 +1,13 @@
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY research_platform/frontend/package.json research_platform/frontend/pnpm-lock.yaml* ./
+RUN corepack enable && pnpm install --node-linker=hoisted --ignore-scripts --frozen-lockfile=false
+COPY research_platform/frontend/index.html ./
+COPY research_platform/frontend/tsconfig.json research_platform/frontend/vite.config.ts ./
+COPY research_platform/frontend/src ./src
+RUN ./node_modules/.bin/tsc -b && ./node_modules/.bin/vite build
+
+FROM nginx:1.27-alpine
+COPY research_platform/docker/nginx.frontend.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist /usr/share/nginx/html
+EXPOSE 80
